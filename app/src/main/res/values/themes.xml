@@ -1,0 +1,8 @@
+<resources>
+    <color name="red">#E4002B</color>
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">#E4002B</item>
+        <item name="colorAccent">#E4002B</item>
+        <item name="colorControlActivated">#E4002B</item>
+    </style>
+</resources>
