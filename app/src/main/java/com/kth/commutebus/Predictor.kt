@@ -47,6 +47,27 @@ object Predictor {
         return b[lo] + (b[hi] - b[lo]) * (i - lo)
     }
 
+    /**
+     * 시간표를 모를 때: 탑승 기록(시각만)을 모아 실제 배차를 추정.
+     * 하루 중 시각으로 정렬해서 5분 넘게 비는 곳에서 끊고,
+     * 3번 이상 탄 묶음마다 중앙값을 배차 시각으로 본다.
+     */
+    fun discoverSlots(rides: List<Ride>, gap: Double = 5.0, minCount: Int = 3): List<String> {
+        val ms = rides.map { minOf(it.ts) }.sorted()
+        if (ms.isEmpty()) return emptyList()
+        val groups = mutableListOf(mutableListOf(ms[0]))
+        for (i in 1 until ms.size) {
+            if (ms[i] - ms[i - 1] > gap) groups.add(mutableListOf())
+            groups.last().add(ms[i])
+        }
+        return groups.filter { it.size >= minCount }
+            .map { hm(quantile(it, 0.5)) }.distinct()
+    }
+
+    /** 가장 가까운 배차 (추정 배차에 기록을 다시 붙일 때). */
+    fun nearestSlot(m: Double, slots: List<String>) =
+        slots.minByOrNull { kotlin.math.abs(toM(it) - m) } ?: slots.first()
+
     data class Plan(
         val slot: String, val n: Int, val basis: String, val ok: Boolean,
         val bus: Double, val leave: Double,

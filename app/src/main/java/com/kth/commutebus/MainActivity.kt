@@ -169,7 +169,8 @@ class MainActivity : AppCompatActivity() {
 
         // 설정
         section("설정")
-        val eSlots = edit("배차 시각 (쉼표로 구분)", s.slots.joinToString(", "), InputType.TYPE_CLASS_TEXT)
+        val eSlots = edit("배차 시각 (쉼표로 구분, 간격이 달라도 됨)", s.slots.joinToString(", "), InputType.TYPE_CLASS_TEXT)
+        root.addView(btn("탑승 기록에서 실제 배차 시각 찾기") { discover() })
         val eWalk = edit("집 → 정류장 걷는 시간 (분)", "${s.walk}", InputType.TYPE_CLASS_NUMBER)
         text("얼마나 확실하게 탈까요", 14f, true, top = 10)
         val rg = RadioGroup(this)
@@ -267,6 +268,25 @@ class MainActivity : AppCompatActivity() {
                 toast("정류장 설정 (오차 약 ${loc.accuracy.toInt()}m)"); restart(); render()
             }
             .addOnFailureListener { toast("위치 오류: ${it.message}") }
+    }
+
+    private fun discover() {
+        val rides = Store.rides(this)
+        val found = Predictor.discoverSlots(rides)
+        if (found.isEmpty()) {
+            toast("기록이 부족해요 (같은 시간대에 3번 이상 탄 기록이 필요)"); return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("기록에서 찾은 배차 ${found.size}개")
+            .setMessage(found.joinToString(", ") +
+                "\n\n같은 시간대에 3번 이상 탄 묶음의 중앙값이에요. 적용하면 배차 시각을 이걸로 바꾸고, 모든 기록을 가장 가까운 배차에 다시 붙여요.")
+            .setPositiveButton("적용") { _, _ ->
+                val cur = Store.settings(this)
+                Store.saveSettings(this, cur.copy(slots = found, fav = cur.fav?.let { Predictor.nearestSlot(Predictor.toM(it).toDouble(), found) }))
+                rides.forEach { it.slot = Predictor.nearestSlot(Predictor.minOf(it.ts), found) }
+                Store.saveRides(this, rides); Notifier.scheduleNext(this); sel = null; render()
+            }
+            .setNegativeButton("취소", null).show()
     }
 
     private fun editRide(r: Ride) {
